@@ -1,0 +1,20 @@
+# Binários
+foral
+foral.exe
+*.exe
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+
+# AI
+.agents/
+.gemini/
+.claude/
+
+# Test artifacts
+test-project/
