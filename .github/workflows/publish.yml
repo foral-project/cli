@@ -1,0 +1,96 @@
+# Foral CLI — Multi-platform publish
+#
+# Triggado por tag push (criada pelo release-please).
+# Cross-compila para 5 targets e publica em GitHub Releases.
+
+name: Publish
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write
+
+jobs:
+  build-and-release:
+    name: Build & Release
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        include:
+          - goos: linux
+            goarch: amd64
+            suffix: linux-amd64
+          - goos: linux
+            goarch: arm64
+            suffix: linux-arm64
+          - goos: darwin
+            goarch: amd64
+            suffix: darwin-amd64
+          - goos: darwin
+            goarch: arm64
+            suffix: darwin-arm64
+          - goos: windows
+            goarch: amd64
+            suffix: windows-amd64.exe
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+
+      - name: Extract version from tag
+        id: version
+        run: echo "version=${GITHUB_REF#refs/tags/v}" >> $GITHUB_OUTPUT
+
+      - name: Build binary
+        env:
+          GOOS: ${{ matrix.goos }}
+          GOARCH: ${{ matrix.goarch }}
+          CGO_ENABLED: "0"
+        run: |
+          go build -o "foral-${{ matrix.suffix }}" \
+            -ldflags "\
+              -s -w \
+              -X github.com/foral-project/cli/cmd.Version=${{ steps.version.outputs.version }} \
+              -X github.com/foral-project/cli/cmd.GitCommit=${{ github.sha }} \
+              -X github.com/foral-project/cli/cmd.BuildDate=$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
+            .
+
+      - name: Generate checksum
+        run: sha256sum "foral-${{ matrix.suffix }}" > "foral-${{ matrix.suffix }}.sha256"
+
+      - name: Upload to GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            foral-${{ matrix.suffix }}
+            foral-${{ matrix.suffix }}.sha256
+
+  # Atualiza install script com versão mais recente
+  update-install-script:
+    name: Update Install Script Version
+    needs: build-and-release
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout protocol repo
+        uses: actions/checkout@v4
+        with:
+          repository: foral-project/protocol
+          token: ${{ secrets.GITHUB_TOKEN }}
+          path: protocol
+
+      - name: Extract version
+        id: version
+        run: echo "version=${GITHUB_REF#refs/tags/v}" >> $GITHUB_OUTPUT
+
+      - name: Log version
+        run: |
+          echo "Nova versão publicada: v${{ steps.version.outputs.version }}"
+          echo "Binários disponíveis em:"
+          echo "  https://github.com/foral-project/cli/releases/tag/${GITHUB_REF#refs/tags/}"

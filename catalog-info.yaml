@@ -1,0 +1,19 @@
+"@context": "https://foral-project.github.io/protocol/context/v1/catalog.jsonld"
+apiVersion: backstage.io/v1alpha1
+kind: Component
+metadata:
+  name: foral-cli
+  description: "Foral CLI — Federated governance from the command line."
+  annotations:
+    foral.dev/archetype: application
+  tags:
+    - cli
+    - go
+    - governance
+spec:
+  type: service
+  lifecycle: experimental
+  owner: foral-project
+  dependsOn:
+    - component:foral-protocol
+    - component:foral-governance
